@@ -1238,6 +1238,7 @@ function jsCall_%s(index%s) {
     ret = '''\
 function%s(%s) {
   var sp = stackSave();
+  console.log(index);
   try {
     %s
   } catch(e) {

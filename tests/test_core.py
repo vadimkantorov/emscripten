@@ -3362,13 +3362,15 @@ ok
       typedef void (*jumpfunc)(jmp_buf);
 
       int main() {
-        printf("go!\n");
+        printf("!go!\n");
 
         void *lib_handle;
         lib_handle = dlopen("liblib.so", RTLD_NOW);
+        printf("!%p!\n", lib_handle);
         assert(lib_handle != NULL);
 
         jumpfunc jumpy = (jumpfunc)dlsym(lib_handle, "jumpy");
+        printf("%p!\n", jumpy);
         assert(jumpy);
 
         jmp_buf buf;

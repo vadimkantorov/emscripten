@@ -44,9 +44,6 @@ if (typeof WebAssembly !== 'object') {
 
 var wasmMemory;
 
-// In fastcomp asm.js, we don't need a wasm Table at all.
-// In the wasm backend, we polyfill the WebAssembly object,
-// so this creates a (non-native-wasm) table for us.
 #include "runtime_init_table.js"
 
 #if USE_PTHREADS
@@ -866,8 +863,12 @@ function createWasm() {
     'a': asmLibraryArg,
 #else // MINIFY_WASM_IMPORTED_MODULES
     'env': asmLibraryArg,
-    '{{{ WASI_MODULE_NAME }}}': asmLibraryArg
+    '{{{ WASI_MODULE_NAME }}}': asmLibraryArg,
 #endif // MINIFY_WASM_IMPORTED_MODULES
+#if RELOCATABLE
+    'GOT.mem': new Proxy(asmLibraryArg, GOTHandler),
+    'GOT.func': new Proxy(asmLibraryArg, GOTHandler),
+#endif
   };
   // Load the wasm module and create an instance of using native support in the JS engine.
   // handle a generated wasm instance, receiving its exports and
@@ -877,6 +878,7 @@ function createWasm() {
     var exports = instance.exports;
 #if RELOCATABLE
     exports = relocateExports(exports, GLOBAL_BASE, 0);
+    updateGOT(exports);
 #endif
 #if ASYNCIFY
     exports = Asyncify.instrumentWasmExports(exports);
@@ -1072,6 +1074,7 @@ function createWasm() {
 #else // NODE_CODE_CACHING
       module = new WebAssembly.Module(binary);
 #endif // NODE_CODE_CACHING
+      console.log(module.imports);
       instance = new WebAssembly.Instance(module, info);
 #if USE_OFFSET_CONVERTER
       wasmOffsetConverter = new WasmOffsetConverter(binary, module);

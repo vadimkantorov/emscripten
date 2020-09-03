@@ -37,6 +37,47 @@ var LibraryDylink = {
     loadedLibNames: {},
   },
 
+  $GOT: {},
+  $GOTHandler: {
+    'get': function(obj, prop) {
+      if (GOT[prop] === undefined) {
+        GOT[prop] = new WebAssembly.Global({value: 'i32', mutable: true});
+        if (Module['_' + prop]) {
+          var value = Module['_' + prop];
+          if (typeof value === 'function') {
+            value = addFunctionWasm(value);
+          }
+          GOT[prop].value = value;
+          console.log("GOTHandler NA: " + prop + " -> " + GOT[prop].value);
+        }
+      }
+      return GOT[prop]
+    }
+  },
+
+  $updateGOT: function(exports) {
+    for (var ex in exports) {
+      if (!GOT[ex]) {
+        GOT[ex] = new WebAssembly.Global({value: 'i32', mutable: true});
+      }
+      if (GOT[ex].value == 0) {
+        var value = exports[ex];
+        if (typeof value === 'function') {
+          GOT[ex].value = addFunctionWasm(value);
+        } else if (typeof value === 'number') {
+          if (Module[ex]) {
+            GOT[ex].value = Module[ex];
+          } else {
+            GOT[ex].value = exports[ex];
+          }
+          //console.log('updateGOT DATA: ' + ex + ' -> ' + GOT[ex].value);
+        } else {
+          assert(false, "bad export type: " + (typeof value));
+        }
+      }
+    }
+  },
+
   // Dynmamic version of shared.py:make_invoke.  This is needed for invokes
   // that originate from side modules since these are not known at JS
   // generation time.
@@ -74,7 +115,7 @@ var LibraryDylink = {
   },
 
   // Loads a side module from binary data
-  $loadWebAssemblyModule__deps: ['$createInvokeFunction', '$getMemory'],
+  $loadWebAssemblyModule__deps: ['$createInvokeFunction', '$getMemory', '$updateGOT', '$GOTHandler'],
   $loadWebAssemblyModule: function(binary, flags) {
     var int32View = new Uint32Array(new Uint8Array(binary.subarray(0, 24)).buffer);
     assert(int32View[0] == 0x6d736100, 'need to see wasm magic number'); // \0asm
@@ -252,12 +293,14 @@ var LibraryDylink = {
       };
       var proxy = new Proxy(env, proxyHandler);
       var info = {
-        global: {
+        'global': {
           'NaN': NaN,
           'Infinity': Infinity,
         },
         'global.Math': Math,
-        env: proxy,
+        'GOT.mem': new Proxy(asmLibraryArg, GOTHandler),
+        'GOT.func': new Proxy(asmLibraryArg, GOTHandler),
+        'env': proxy,
         {{{ WASI_MODULE_NAME }}}: proxy,
       };
 #if ASSERTIONS
@@ -282,6 +325,7 @@ var LibraryDylink = {
         }
 #endif
         var exports = relocateExports(instance.exports, memoryBase, tableBase, moduleLocal);
+        updateGOT(exports);
         // initialize the module
         var init = exports['__post_instantiate'];
         if (init) {
