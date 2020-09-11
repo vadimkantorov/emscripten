@@ -41,21 +41,32 @@ var LibraryDylink = {
   $GOTHandler: {
     'get': function(obj, prop) {
       if (GOT[prop] === undefined) {
+        console.log("GOTHandler: " + prop);
         GOT[prop] = new WebAssembly.Global({value: 'i32', mutable: true});
-        if (Module['_' + prop]) {
-          var value = Module['_' + prop];
-          if (typeof value === 'function') {
-            value = addFunctionWasm(value);
-          }
-          GOT[prop].value = value;
-          console.log("GOTHandler NA: " + prop + " -> " + GOT[prop].value);
+        var value;
+        if (Module['asm']) {
+          value = Module['arm'][prop];
         }
+        if (!value) {
+          value = Module['_' + prop];
+        }
+        if (!value) {
+          console.log("GOTHandler: undefined symbol: " + prop);
+          return false;
+        }
+        if (typeof value === 'function') {
+          console.log("GOTHandler func: " + prop);
+          value = addFunctionWasm(value);
+        }
+        GOT[prop].value = value;
+        console.log("GOTHandler NA: " + prop + " -> " + GOT[prop].value);
       }
       return GOT[prop]
     }
   },
 
   $updateGOT: function(exports) {
+    console.log("updateGOT");
     for (var ex in exports) {
       if (!GOT[ex]) {
         GOT[ex] = new WebAssembly.Global({value: 'i32', mutable: true});

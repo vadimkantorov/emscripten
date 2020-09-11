@@ -875,9 +875,12 @@ function createWasm() {
   // performing other necessary setup
   /** @param {WebAssembly.Module=} module*/
   function receiveInstance(instance, module) {
+    console.log("receiveInstance");
     var exports = instance.exports;
 #if RELOCATABLE
+    console.log("relocateExports");
     exports = relocateExports(exports, GLOBAL_BASE, 0);
+    console.log("updateGOT");
     updateGOT(exports);
 #endif
 #if ASYNCIFY
