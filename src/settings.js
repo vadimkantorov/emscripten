@@ -1499,7 +1499,7 @@ var RUNTIME_FUNCS_TO_IMPORT = ['abort', 'setTempRet0', 'getTempRet0']
 // not available.  If you are using C++ exceptions, but do not need
 // setjmp()+longjmp() API, then you can set this to 0 to save a little bit of
 // code size and performance when catching exceptions.
-var SUPPORT_LONGJMP = 1;
+var SUPPORT_LONGJMP = 0;
 
 // If set to 1, disables old deprecated HTML5 API event target lookup behavior.
 // When enabled, there is no "Module.canvas" object, no magic "null" default
